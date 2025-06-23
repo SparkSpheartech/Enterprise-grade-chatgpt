@@ -1,0 +1,64 @@
+# ============================
+# OpenWebUI + Ollama Setup Script (Windows)
+# Author: Shazaly Musa
+# Purpose: Run a local AI chatbot UI using Docker + PowerShell
+# ============================
+
+# Step 1: Set up project folder path
+$projectPath = "$HOME\OpenWebUI-Ollama"
+
+# If the folder doesn't exist, create it
+if (-Not (Test-Path $projectPath)) {
+    New-Item -Path $projectPath -ItemType Directory | Out-Null
+}
+
+# Navigate into the project folder
+Set-Location $projectPath
+
+# Step 2: Create docker-compose.yml to define Docker containers
+# This file tells Docker how to run Ollama (AI engine) and OpenWebUI (chat interface)
+$dockerComposeContent = @"
+version: '3.8'
+
+services:
+  ollama:
+    image: ollama/ollama                      # Uses Ollama image from Docker Hub
+    container_name: ollama
+    restart: unless-stopped                  # Automatically restart if it stops
+    ports:
+      - "11434:11434"                        # Exposes Ollama API to host
+    volumes:
+      - ollama:/root/.ollama                 # Saves model data locally
+
+  openwebui:
+    image: ghcr.io/open-webui/open-webui:main # Gets OpenWebUI from GitHub Container Registry
+    container_name: openwebui
+    depends_on:
+      - ollama                               # Waits until Ollama is ready
+    ports:
+      - "3000:8080"                          # Maps OpenWebUI to localhost:3000
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434  # Connects OpenWebUI to Ollama
+    volumes:
+      - openwebui:/app/backend/data          # Saves chat data/settings
+    restart: unless-stopped
+
+volumes:
+  ollama:
+  openwebui:
+"@
+
+# Save the docker-compose.yml file to disk
+$dockerComposeContent | Set-Content -Encoding UTF8 "$projectPath\docker-compose.yml"
+
+# Step 3: Start the containers (runs Ollama and OpenWebUI in the background)
+docker-compose up -d
+
+# Step 4: Pull and run the LLaMA3 model inside the Ollama container
+# This downloads the model and makes it ready for chat use in OpenWebUI
+Write-Host "`n📦 Pulling and running LLaMA3 model..."
+docker exec -it ollama ollama run llama3
+
+# Step 5: Success message
+Write-Host "`n✅ OpenWebUI is running at: http://localhost:3000"
+Write-Host "🧠 LLaMA3 model is loaded and ready to chat!"
