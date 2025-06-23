@@ -7,7 +7,7 @@
 # Step 1: Set up project folder path
 $projectPath = "$HOME\OpenWebUI-Ollama"
 
-# If the folder doesn't exist, create it
+# Create the folder if it doesn't exist
 if (-Not (Test-Path $projectPath)) {
     New-Item -Path $projectPath -ItemType Directory | Out-Null
 }
@@ -15,32 +15,35 @@ if (-Not (Test-Path $projectPath)) {
 # Navigate into the project folder
 Set-Location $projectPath
 
-# Step 2: Create docker-compose.yml to define Docker containers
-# This file tells Docker how to run Ollama (AI engine) and OpenWebUI (chat interface)
+# Step 2: Generate a secure secret key for WEBUI
+$webuiSecret = [guid]::NewGuid().ToString()
+
+# Step 3: Define the docker-compose content
 $dockerComposeContent = @"
 version: '3.8'
 
 services:
   ollama:
-    image: ollama/ollama                      # Uses Ollama image from Docker Hub
+    image: ollama/ollama
     container_name: ollama
-    restart: unless-stopped                  # Automatically restart if it stops
+    restart: unless-stopped
     ports:
-      - "11434:11434"                        # Exposes Ollama API to host
+      - "11434:11434"
     volumes:
-      - ollama:/root/.ollama                 # Saves model data locally
+      - ollama:/root/.ollama
 
   openwebui:
-    image: ghcr.io/open-webui/open-webui:main # Gets OpenWebUI from GitHub Container Registry
+    image: ghcr.io/open-webui/open-webui:main
     container_name: openwebui
     depends_on:
-      - ollama                               # Waits until Ollama is ready
+      - ollama
     ports:
-      - "3000:8080"                          # Maps OpenWebUI to localhost:3000
+      - "3000:8080"
     environment:
-      - OLLAMA_BASE_URL=http://ollama:11434  # Connects OpenWebUI to Ollama
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - WEBUI_SECRET=$webuiSecret
     volumes:
-      - openwebui:/app/backend/data          # Saves chat data/settings
+      - openwebui:/app/backend/data
     restart: unless-stopped
 
 volumes:
@@ -48,17 +51,27 @@ volumes:
   openwebui:
 "@
 
-# Save the docker-compose.yml file to disk
+# Step 4: Write the docker-compose.yml file
 $dockerComposeContent | Set-Content -Encoding UTF8 "$projectPath\docker-compose.yml"
 
-# Step 3: Start the containers (runs Ollama and OpenWebUI in the background)
+# Step 5: Pull the latest Docker images
+Write-Host "`n🔄 Pulling Docker images..."
+docker-compose pull
+
+# Step 6: Start the Docker containers
+Write-Host "`n🚀 Starting Docker containers..."
 docker-compose up -d
 
-# Step 4: Pull and run the LLaMA3 model inside the Ollama container
-# This downloads the model and makes it ready for chat use in OpenWebUI
-Write-Host "`n📦 Pulling and running LLaMA3 model..."
+# Step 7: Wait for containers to initialize
+Write-Host "`n⏳ Waiting for containers to initialize..."
+Start-Sleep -Seconds 10
+
+# Step 8: Pull and run the llama3 model in the Ollama container
+Write-Host "`n📦 Downloading LLaMA3 model (this may take a few minutes)..."
 docker exec -it ollama ollama run llama3
 
-# Step 5: Success message
-Write-Host "`n✅ OpenWebUI is running at: http://localhost:3000"
-Write-Host "🧠 LLaMA3 model is loaded and ready to chat!"
+# Step 9: Final message
+Write-Host "`n✅ Setup Complete!"
+Write-Host "🌐 OpenWebUI is running at: http://localhost:3000"
+Write-Host "🧠 LLaMA3 model is loaded and ready for use"
+Write-Host "`n🔐 Your WEBUI_SECRET is: $webuiSecret"
