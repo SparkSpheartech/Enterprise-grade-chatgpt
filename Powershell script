@@ -1,32 +1,18 @@
-# ============================
-# OpenWebUI + Ollama Setup Script (Windows)
+# Simple Local AI Setup: OpenWebUI + Ollama
 # Author: Shazaly Musa
-# Purpose: Run a local AI chatbot UI using Docker + PowerShell
-# ============================
+# Description: Quick setup to run a local AI chatbot UI using Docker
 
-# Step 1: Set up project folder path
-$projectPath = "$HOME\OpenWebUI-Ollama"
+# 1. Create a folder for the project
+mkdir "$HOME\SimpleAISetup"
+cd "$HOME\SimpleAISetup"
 
-# Create the folder if it doesn't exist
-if (-Not (Test-Path $projectPath)) {
-    New-Item -Path $projectPath -ItemType Directory | Out-Null
-}
-
-# Navigate into the project folder
-Set-Location $projectPath
-
-# Step 2: Generate a secure secret key for WEBUI
-$webuiSecret = [guid]::NewGuid().ToString()
-
-# Step 3: Define the docker-compose content
-$dockerComposeContent = @"
+# 2. Create the docker-compose.yml file (basic version)
+@"
 version: '3.8'
 
 services:
   ollama:
     image: ollama/ollama
-    container_name: ollama
-    restart: unless-stopped
     ports:
       - "11434:11434"
     volumes:
@@ -34,44 +20,20 @@ services:
 
   openwebui:
     image: ghcr.io/open-webui/open-webui:main
-    container_name: openwebui
-    depends_on:
-      - ollama
     ports:
       - "3000:8080"
     environment:
       - OLLAMA_BASE_URL=http://ollama:11434
-      - WEBUI_SECRET=$webuiSecret
     volumes:
       - openwebui:/app/backend/data
-    restart: unless-stopped
 
 volumes:
   ollama:
   openwebui:
-"@
+"@ | Out-File "docker-compose.yml" -Encoding UTF8
 
-# Step 4: Write the docker-compose.yml file
-$dockerComposeContent | Set-Content -Encoding UTF8 "$projectPath\docker-compose.yml"
-
-# Step 5: Pull the latest Docker images
-Write-Host "`n🔄 Pulling Docker images..."
-docker-compose pull
-
-# Step 6: Start the Docker containers
-Write-Host "`n🚀 Starting Docker containers..."
+# 3. Start everything
 docker-compose up -d
 
-# Step 7: Wait for containers to initialize
-Write-Host "`n⏳ Waiting for containers to initialize..."
-Start-Sleep -Seconds 10
-
-# Step 8: Pull and run the llama3 model in the Ollama container
-Write-Host "`n📦 Downloading LLaMA3 model (this may take a few minutes)..."
-docker exec -it ollama ollama run llama3
-
-# Step 9: Final message
-Write-Host "`n✅ Setup Complete!"
-Write-Host "🌐 OpenWebUI is running at: http://localhost:3000"
-Write-Host "🧠 LLaMA3 model is loaded and ready for use"
-Write-Host "`n🔐 Your WEBUI_SECRET is: $webuiSecret"
+# 4. Done!
+Write-Host "`n✅ Done! Visit http://localhost:3000 to use your local AI chatbot!"
